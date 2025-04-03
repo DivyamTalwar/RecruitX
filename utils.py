@@ -109,7 +109,7 @@ async def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
     prompt = (
         "Extract the key job information from the text below. Return only valid JSON "
         "with the following keys: title, company, location, requirements, responsibilities, benefits, experience. "
-        "Do not include any Extra information.\n\n"
+        "Do not include any Extra information that is not mentioned above.\n\n"
         "Job description:\n" + job_text #provides the raw job description
     )
     messages = [
