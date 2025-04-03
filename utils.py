@@ -9,12 +9,15 @@ from typing import Optional #optional indicates that the value might be "NONE"
 import asyncio
 import tempfile
 import PyPDF2
+import streamlit as st
 
 load_dotenv()
 
-app = FirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
-openai_api_key = os.environ.get("OPENAI_API_KEY")
+FireCrawlApiKey = st.secrets["FIRECRAWL_API_KEY"]
+app = FirecrawlApp(api_key=FireCrawlApiKey)
+openai_api_key = st.secrets["OPENAI_API_KEY"]
 openai_client = OpenAI(api_key=openai_api_key)
+
 
 '''This model represents the score for a candidate. It uses Pydantic to ensure that the data fits the specified types.
 here we had just defined the Pydantic MODEL which specifies the fields,datatypes,description.it is simply a DataStructure ensuring
