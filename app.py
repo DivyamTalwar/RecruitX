@@ -9,78 +9,32 @@ from utils import (
     generate_email_templates,
 )
 
-# Custom CSS for a more polished look
 st.markdown(
-    """
-    <style>
-    /* Global styles */
-    body {
-        background: linear-gradient(to bottom right, #f0f4f8, #d9e2ec);
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    /* Centered header styles */
-    .main-header {
-        text-align: center; 
-        color: #1D3557; 
-        font-size: 3em; 
-        margin-bottom: 0;
-    }
-    .sub-header {
-        text-align: center; 
-        color: #457B9D; 
-        font-size: 1.5em; 
-        margin-top: 0;
-    }
-    /* Section headers */
-    .section-header {
-        color: #1D3557;
-        border-bottom: 2px solid #457B9D;
-        padding-bottom: 5px;
-    }
-    /* Button styling */
-    div.stButton > button {
-        background-color: #457B9D;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        font-size: 1.2em;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-    }
-    div.stButton > button:hover {
-        background-color: #1D3557;
-    }
-    /* Card styling for the expander content */
-    .stExpander {
-        background-color: #f8f9fa;
-        border: 1px solid #ced4da;
-        border-radius: 8px;
-        margin-bottom: 10px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
+    "<h1 style='text-align: center; color: #4A90E2;'>🚀 AI-Powered Resume Screening</h1>",
+    unsafe_allow_html=True,
 )
 
-# Application header
-st.markdown("<h1 class='main-header'>🚀 AI-Powered Resume Screening</h1>", unsafe_allow_html=True)
-st.markdown("<h5 class='sub-header'>Smartly analyze resumes & job descriptions to find the best candidates.</h5>", unsafe_allow_html=True)
+st.markdown(
+    "<h5 style='text-align: center; color: #333;'>Smartly analyze resumes & job descriptions to find the best candidates.</h5>",
+    unsafe_allow_html=True,
+)
+
 st.write("---")
 
-# Job Description input
+
 st.subheader("📄 Job Description")
 job_description = st.text_area("Paste the job description or URL", height=150)
 
-# Resume file uploader
+
 st.subheader("📂 Upload Candidate Resumes")
 resume_files = st.file_uploader(
     "Upload resume files (PDF/Word)", type=["pdf", "docx", "doc"], accept_multiple_files=True
 )
 
-# Slider for selecting number of candidates to invite
+
 st.subheader("🎯 Candidates to Invite")
 num_candidates = st.slider("Select the number of candidates for interviews", 1, 4, 2)
+
 
 async def run_agent():
     if not job_description:
@@ -91,17 +45,17 @@ async def run_agent():
         return
 
     st.success("✅ AI Agent is now processing... Stay tuned! ⏳")
-    status_text = st.empty()  # Placeholder for status updates
+    status_text = st.empty()  # Placeholder For Status 
 
     try:
-        # STEP 1: PROCESS INPUTS
+        #STEP 1: PROCESS INPUTS
         with st.spinner("🔍 Step 1: Extracting & processing inputs..."):
             raw_data = await ingest_inputs(job_description, resume_files)
             status_text.markdown("✅ **Step 1 Complete:** Inputs processed.")
             with st.expander("🔎 View Processed Inputs", expanded=False):
                 st.json(raw_data)
 
-        # STEP 2: PARSE JOB DESCRIPTION & RESUMES
+        #STEP 2: PARSE JOB DESCRIPTION & RESUMES
         with st.spinner("📑 Step 2: Understanding job description & resumes..."):
             parsed_requirements = await parse_job_description(raw_data)
             parsed_resumes = await parse_resumes(resume_files)
@@ -111,33 +65,34 @@ async def run_agent():
             with st.expander("📄 View Processed Resumes", expanded=False):
                 st.json(parsed_resumes)
 
-        # STEP 3: SCORE CANDIDATES
+        #STEP 3: SCORE CANDIDATES
         with st.spinner("⚖️ Step 3: Evaluating candidates..."):
             candidate_scores = await score_candidates(parsed_requirements, parsed_resumes)
             status_text.markdown("✅ **Step 3 Complete:** Candidates scored.")
             with st.expander("📊 View Candidate Scores", expanded=False):
                 st.json(candidate_scores)
 
-        # STEP 4: RANK CANDIDATES
+        #STEP 4: RANK CANDIDATES
         with st.spinner("📊 Step 4: Ranking top candidates..."):
             ranked_candidates = rank_candidates(candidate_scores)
             status_text.markdown("✅ **Step 4 Complete:** Candidates ranked.")
             with st.expander("🏆 View Ranked Candidates", expanded=False):
                 st.json(ranked_candidates)
 
-        # STEP 5: GENERATE EMAIL TEMPLATES
+        #STEP 5: GENERATE EMAIL TEMPLATES
         with st.spinner("✉️ Step 5: Generating interview invitations & rejections..."):
             email_templates = await generate_email_templates(ranked_candidates, parsed_requirements, num_candidates)
             status_text.markdown("✅ **Step 5 Complete:** Emails generated.")
             with st.expander("📩 View Email Templates", expanded=False):
                 st.json(email_templates)
 
-        # FINAL SUCCESS MESSAGE
+        #FINAL SUCCESS MESSAGE
         status_text.markdown("<h3 style='text-align: center; color: #27AE60;'>🎉 AI Agent has completed processing! Your results are ready. 🚀</h3>", unsafe_allow_html=True)
-
+    
     except Exception as e:
         st.error(f"❌ An error occurred: {str(e)}")
 
-# Run the async agent when the button is clicked
+
+#If User Clicks The Run Agent Button Start The Process
 if st.button("🚀 Run AI Screening"):
-    asyncio.run(run_agent())
+    asyncio.run(run_agent())  # Executes the async function in Streamlit
