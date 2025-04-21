@@ -18,6 +18,7 @@ app = FirecrawlApp(api_key=FireCrawlApiKey)
 openai_api_key = st.secrets["OPENAI_API_KEY"]
 openai_client = OpenAI(api_key=openai_api_key)
 
+
 '''This model represents the score for a candidate. It uses Pydantic to ensure that the data fits the specified types.
 here we had just defined the Pydantic MODEL which specifies the fields,datatypes,description.it is simply a DataStructure ensuring
 CandidateScore matches the correct format'''
