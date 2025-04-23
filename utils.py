@@ -9,22 +9,22 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-# Import the Groq-based chat model from langchain-groq
 from langchain_groq import ChatGroq
 
-# Initialize ChatGroq with the GROQ API key from Streamlit secrets.
-groq_api_key = st.secrets["GROQ_API_KEY"]
+# Initialize ChatGroq using API key from st.secrets
+groq_api_key = st.secrets.get("GROQ_API_KEY", None)
+if not groq_api_key:
+    st.error("GROQ_API_KEY not found in secrets.")
+
 llm = ChatGroq(
-    model="gemma2-9b-it", 
-    temperature=0, 
-    max_tokens=None, 
-    timeout=None, 
+    model="gemma2-9b-it",
+    temperature=0,
+    max_tokens=None,
+    timeout=None,
     max_retries=2,
 )
-# Note: ChatGroq automatically reads GROQ_API_KEY from the environment if set.
 
-# Define Pydantic models for structured responses.
-
+# Define Pydantic models for structured responses
 class CandidateScore(BaseModel):
     name: str = Field(..., description="Candidate's name")
     relevance: int = Field(..., description="Resume relevance score (0-100)")
@@ -64,14 +64,19 @@ def ingest_inputs(job_description: str, resume_files: List[Any]) -> Dict[str, An
             raise Exception(f"Failed to scrape the job description URL: {e}")
     else:
         job_desc_text = job_description
+
+    # Log uploaded resume file names
     resumes = [file.name for file in resume_files]
     return {"job_description": job_desc_text, "resumes": resumes}
 
 def call_llm(messages: List[Dict[str, Any]], response_format: Optional[Any] = None) -> str:
-    # Append a note about expected schema if one is provided.
+    # Append expected JSON schema if a response format is provided.
     if response_format:
         messages[0]["content"] += f"\nReturn output in JSON matching this schema: {response_format.schema()}"
-    response = llm.invoke(messages)
+    try:
+        response = llm.invoke(messages)
+    except Exception as e:
+        raise Exception(f"LLM invocation failed: {e}")
     return response.content
 
 def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -80,7 +85,7 @@ def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("No job description text provided.")
     prompt = (
         "Extract key job information from the text below. "
-        "Return valid JSON with these keys: title, company, location, requirements, responsibilities, benefits, experience. "
+        "Return valid JSON with exactly these keys: title, company, location, requirements, responsibilities, benefits, experience. "
         "Do not include any extra information.\n\nJob description:\n" + job_text
     )
     messages = [
@@ -97,33 +102,41 @@ def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
         llm_output = call_llm(messages, response_format=JobDescription)
         structured_jd = json.loads(llm_output)
     except Exception as e:
-        raise Exception(f"Error parsing job description: {e}")
+        # Provide the raw LLM output in the error for easier debugging.
+        raise Exception(f"Error parsing job description: {e}\nRaw LLM output: {llm_output}")
     return structured_jd
 
 def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
     parsed_resumes = []
     for resume in resume_files:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-            temp_file.write(resume.read())
-            temp_path = temp_file.name
-        with open(temp_path, "rb") as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            pdf_text = " ".join(page.extract_text() or "" for page in pdf_reader.pages)
-        messages = [
-            {
-                "role": "system",
-                "content": "Extract candidate resume details following the JSON schema.",
-            },
-            {
-                "role": "user",
-                "content": f"Extract resume details from the following text:\n\n{pdf_text}",
-            },
-        ]
+        temp_path = None
         try:
+            # Write uploaded resume to a temporary file.
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+                temp_file.write(resume.read())
+                temp_path = temp_file.name
+            # Extract text from the PDF.
+            with open(temp_path, "rb") as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                pdf_text = " ".join(page.extract_text() or "" for page in pdf_reader.pages)
+            messages = [
+                {
+                    "role": "system",
+                    "content": "Extract candidate resume details following the JSON schema.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Extract resume details from the following text:\n\n{pdf_text}",
+                },
+            ]
             llm_response = call_llm(messages, response_format=Resume)
             parsed_resume = json.loads(llm_response)
         except Exception as e:
             parsed_resume = {"error": f"Failed to parse resume: {e}"}
+        finally:
+            # Ensure the temporary file is removed.
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
         parsed_resumes.append(parsed_resume)
     return {"parsed_resumes": parsed_resumes}
 
@@ -191,20 +204,17 @@ def generate_email_templates(
                 )
             },
         ]
+        # For top candidates invite, others receive rejection email
         if idx < top_x:
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": "Create an invitation email inviting the candidate for a call. The tone should be friendly and professional."
-                }
-            )
+            messages.append({
+                "role": "assistant",
+                "content": "Create an invitation email inviting the candidate for a call. The tone should be friendly and professional."
+            })
         else:
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": "Create a polite rejection email with constructive feedback."
-                }
-            )
+            messages.append({
+                "role": "assistant",
+                "content": "Create a polite rejection email with constructive feedback."
+            })
         try:
             email_body = call_llm(messages, response_format=None)
         except Exception as e:
