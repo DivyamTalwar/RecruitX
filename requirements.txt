@@ -9,3 +9,5 @@ uvicorn
 groq
 documents
 docx
+langchain
+langchain_groq
