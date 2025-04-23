@@ -41,9 +41,9 @@ def run_agent():
     if not resume_files:
         st.error("⚠️ Please upload at least one resume file.")
         return
-    
+
     st.success("✅ AI Agent is processing... Stay tuned! ⏳")
-    
+
     # STEP 1: Process Inputs
     try:
         with st.spinner("🔍 Step 1: Extracting & processing inputs..."):
@@ -54,7 +54,7 @@ def run_agent():
     except Exception as e:
         st.error(f"Error in Step 1 (Ingesting Inputs): {e}")
         return
-    
+
     # STEP 2: Parse Job Description & Resumes
     try:
         with st.spinner("📑 Step 2: Understanding job description & resumes..."):

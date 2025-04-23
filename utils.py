@@ -45,12 +45,12 @@ class Resume(BaseModel):
 
 class JobDescription(BaseModel):
     title: str
-    company: str
-    location: str
-    requirements: List[str]
-    responsibilities: List[str]
-    benefits: List[str]
-    experience: str
+    company: Optional[str] = Field(None, description="Company name")
+    location: Optional[str] = Field(None, description="Job location")
+    requirements: List[str] = Field(..., description="Job requirements")
+    responsibilities: List[str] = Field(..., description="Job responsibilities")
+    benefits: List[str] = Field(..., description="Job benefits")
+    experience: Optional[str] = Field(None, description="Experience required for the job")
 
 def ingest_inputs(job_description: str, resume_files: List[Any]) -> Dict[str, Any]:
     if job_description.startswith("http"):
@@ -65,12 +65,10 @@ def ingest_inputs(job_description: str, resume_files: List[Any]) -> Dict[str, An
     else:
         job_desc_text = job_description
 
-    # Log uploaded resume file names
     resumes = [file.name for file in resume_files]
     return {"job_description": job_desc_text, "resumes": resumes}
 
 def call_llm(messages: List[Dict[str, Any]], response_format: Optional[Any] = None) -> str:
-    # Append expected JSON schema if a response format is provided.
     if response_format:
         messages[0]["content"] += f"\nReturn output in JSON matching this schema: {response_format.schema()}"
     try:
@@ -83,11 +81,13 @@ def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
     job_text = data.get("job_description", "")
     if not job_text:
         raise ValueError("No job description text provided.")
+    
     prompt = (
         "Extract key job information from the text below. "
         "Return valid JSON with exactly these keys: title, company, location, requirements, responsibilities, benefits, experience. "
-        "Do not include any extra information.\n\nJob description:\n" + job_text
+        "If a value for a key is not available, return null instead of an empty list.\n\nJob description:\n" + job_text
     )
+
     messages = [
         {
             "role": "system",
@@ -98,12 +98,13 @@ def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
         },
         {"role": "user", "content": prompt},
     ]
+    
     try:
         llm_output = call_llm(messages, response_format=JobDescription)
         structured_jd = json.loads(llm_output)
     except Exception as e:
-        # Provide the raw LLM output in the error for easier debugging.
         raise Exception(f"Error parsing job description: {e}\nRaw LLM output: {llm_output}")
+    
     return structured_jd
 
 def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
@@ -111,14 +112,14 @@ def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
     for resume in resume_files:
         temp_path = None
         try:
-            # Write uploaded resume to a temporary file.
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
                 temp_file.write(resume.read())
                 temp_path = temp_file.name
-            # Extract text from the PDF.
+            
             with open(temp_path, "rb") as file:
                 pdf_reader = PyPDF2.PdfReader(file)
                 pdf_text = " ".join(page.extract_text() or "" for page in pdf_reader.pages)
+            
             messages = [
                 {
                     "role": "system",
@@ -134,7 +135,6 @@ def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
         except Exception as e:
             parsed_resume = {"error": f"Failed to parse resume: {e}"}
         finally:
-            # Ensure the temporary file is removed.
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
         parsed_resumes.append(parsed_resume)
@@ -204,7 +204,6 @@ def generate_email_templates(
                 )
             },
         ]
-        # For top candidates invite, others receive rejection email
         if idx < top_x:
             messages.append({
                 "role": "assistant",
