@@ -112,7 +112,7 @@ with st.container():
 
     with col2:
         with card(
-            title="📊 Interview Settings",
+            title="🎯 Interview Settings",
             text="Configure your screening parameters",
             styles={
                 "card": {
@@ -121,13 +121,14 @@ with st.container():
                     "box-shadow": "0 4px 6px rgba(0,0,0,0.1)",
                     "padding": "1rem",
                 }
-            }
-        ):
+        }
+    ):
             num_candidates = st.slider(
                 "Number of candidates to interview",
                 1, 10, 3,
                 help="Select how many top candidates you want to interview"
             )
+
 
 add_vertical_space(1)
 
