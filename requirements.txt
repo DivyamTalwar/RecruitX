@@ -7,3 +7,5 @@ pydantic
 fastapi
 uvicorn
 groq
+documents
+docx
