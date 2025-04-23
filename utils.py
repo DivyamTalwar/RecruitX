@@ -12,12 +12,12 @@ load_dotenv()
 from langchain_groq import ChatGroq
 
 # Initialize ChatGroq using API key from st.secrets
-groq_api_key = st.secrets.get("GROQ_API_KEY", None)
+groq_api_key = st.secrets.get("GROQ_API_KEY")
 if not groq_api_key:
     st.error("GROQ_API_KEY not found in secrets.")
 
 llm = ChatGroq(
-    model="gemma2-9b-it",
+    model="llama3-8b-8192",
     temperature=0,
     max_tokens=None,
     timeout=None,
@@ -26,40 +26,40 @@ llm = ChatGroq(
 
 # Define Pydantic models for structured responses
 class CandidateScore(BaseModel):
-    name: str = Field(..., description="Candidate's name")
-    relevance: int = Field(..., description="Resume relevance score (0-100)")
-    experience: int = Field(..., description="Candidate experience score (0-100)")
-    skills: int = Field(..., description="Candidate skills match (0-100)")
-    overall: int = Field(..., description="Overall score (0-100)")
-    comment: str = Field(..., description="Evaluation comment")
+    name: str
+    relevance: int
+    experience: int
+    skills: int
+    overall: int
+    comment: str
 
 class Resume(BaseModel):
-    name: str = Field(..., description="Candidate's full name")
-    work_experiences: List[str] = Field(..., description="List of work experiences")
-    location: str = Field(..., description="Candidate's location")
-    skills: List[str] = Field(..., description="List of candidate's skills")
-    education: List[str] = Field(..., description="Educational background")
-    summary: Optional[str] = Field(None, description="Short summary or objective")
-    certifications: Optional[List[str]] = Field(None, description="List of certifications")
-    languages: Optional[List[str]] = Field(None, description="Languages spoken")
+    name: str
+    work_experiences: List[str]
+    location: str
+    skills: List[str]
+    education: List[str]
+    summary: Optional[str] = None
+    certifications: Optional[List[str]] = None
+    languages: Optional[List[str]] = None
 
 class JobDescription(BaseModel):
     title: str
-    company: Optional[str] = Field(None, description="Company name")
-    location: Optional[str] = Field(None, description="Job location")
-    requirements: List[str] = Field(..., description="Job requirements")
-    responsibilities: List[str] = Field(..., description="Job responsibilities")
-    benefits: List[str] = Field(..., description="Job benefits")
-    experience: Optional[str] = Field(None, description="Experience required for the job")
+    company: Optional[str] = None
+    location: Optional[str] = None
+    requirements: List[str]
+    responsibilities: List[str]
+    benefits: List[str]
+    experience: Optional[str] = None
 
 def ingest_inputs(job_description: str, resume_files: List[Any]) -> Dict[str, Any]:
     if job_description.startswith("http"):
         try:
-            # Use GROQ to scrape the URL and return markdown data.
+            # Scrape the job description if URL is provided.
             result = llm.client.scrape_url(job_description, params={"formats": ["markdown"]})
             if not result or "markdown" not in result:
                 raise ValueError("Scraping did not return markdown data.")
-            job_desc_text = result.get("markdown", "")
+            job_desc_text = result["markdown"]
         except Exception as e:
             raise Exception(f"Failed to scrape the job description URL: {e}")
     else:
@@ -71,11 +71,21 @@ def ingest_inputs(job_description: str, resume_files: List[Any]) -> Dict[str, An
 def call_llm(messages: List[Dict[str, Any]], response_format: Optional[Any] = None) -> str:
     if response_format:
         messages[0]["content"] += f"\nReturn output in JSON matching this schema: {response_format.schema()}"
+    
     try:
         response = llm.invoke(messages)
+        raw_content = response.content
+        
+        # Remove unnecessary formatting artifacts (e.g., markdown block quotes).
+        clean_output = raw_content.strip().replace("```json", "").replace("```", "").strip()
+        
+        # Check and ensure it's valid JSON
+        if not clean_output.startswith("{"):
+            raise ValueError("Output is not recognized as valid JSON.")
+
+        return clean_output
     except Exception as e:
-        raise Exception(f"LLM invocation failed: {e}")
-    return response.content
+        raise Exception(f"LLM invocation failed: {e}. Raw response: {raw_content}")
 
 def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
     job_text = data.get("job_description", "")
@@ -84,17 +94,14 @@ def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
     
     prompt = (
         "Extract key job information from the text below. "
-        "Return valid JSON with exactly these keys: title, company, location, requirements, responsibilities, benefits, experience. "
+        "Return valid JSON with these keys: title, company, location, requirements, responsibilities, benefits, experience. "
         "If a value for a key is not available, return null instead of an empty list.\n\nJob description:\n" + job_text
     )
-
+    
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are an assistant that extracts job description details. "
-                "Return only the job details in valid JSON format."
-            ),
+            "content": "You are an assistant that extracts job description details. Return only the job details in valid JSON format.",
         },
         {"role": "user", "content": prompt},
     ]
@@ -119,7 +126,7 @@ def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
             with open(temp_path, "rb") as file:
                 pdf_reader = PyPDF2.PdfReader(file)
                 pdf_text = " ".join(page.extract_text() or "" for page in pdf_reader.pages)
-            
+
             messages = [
                 {
                     "role": "system",
@@ -139,6 +146,7 @@ def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
                 os.remove(temp_path)
         parsed_resumes.append(parsed_resume)
     return {"parsed_resumes": parsed_resumes}
+
 
 def score_candidates(parsed_requirements: Dict[str, Any], parsed_resumes: Dict[str, Any]) -> List[Dict[str, Any]]:
     candidate_scores = []
