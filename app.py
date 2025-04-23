@@ -9,6 +9,8 @@ from utils import (
     generate_email_templates,
 )
 
+st.set_page_config(page_title="AI Resume Screener", layout="centered")
+
 st.markdown(
     "<h1 style='text-align: center; color: #4A90E2;'>🚀 AI-Powered Resume Screening</h1>",
     unsafe_allow_html=True,
@@ -21,20 +23,16 @@ st.markdown(
 
 st.write("---")
 
-
 st.subheader("📄 Job Description")
 job_description = st.text_area("Paste the job description or URL", height=150)
-
 
 st.subheader("📂 Upload Candidate Resumes")
 resume_files = st.file_uploader(
     "Upload resume files (PDF/Word)", type=["pdf", "docx", "doc"], accept_multiple_files=True
 )
 
-
 st.subheader("🎯 Candidates to Invite")
-num_candidates = st.slider("Select the number of candidates for interviews", 1, 4, 2)
-
+num_candidates = st.slider("Select the number of candidates for interviews", min_value=1, max_value=5, value=2)
 
 async def run_agent():
     if not job_description:
@@ -45,17 +43,17 @@ async def run_agent():
         return
 
     st.success("✅ AI Agent is now processing... Stay tuned! ⏳")
-    status_text = st.empty()  # Placeholder For Status 
+    status_text = st.empty()
 
     try:
-        #STEP 1: PROCESS INPUTS
+        # Step 1: Ingest Input
         with st.spinner("🔍 Step 1: Extracting & processing inputs..."):
             raw_data = await ingest_inputs(job_description, resume_files)
             status_text.markdown("✅ **Step 1 Complete:** Inputs processed.")
             with st.expander("🔎 View Processed Inputs", expanded=False):
                 st.json(raw_data)
 
-        #STEP 2: PARSE JOB DESCRIPTION & RESUMES
+        # Step 2: Parse JD & Resumes
         with st.spinner("📑 Step 2: Understanding job description & resumes..."):
             parsed_requirements = await parse_job_description(raw_data)
             parsed_resumes = await parse_resumes(resume_files)
@@ -65,34 +63,35 @@ async def run_agent():
             with st.expander("📄 View Processed Resumes", expanded=False):
                 st.json(parsed_resumes)
 
-        #STEP 3: SCORE CANDIDATES
+        # Step 3: Score Candidates
         with st.spinner("⚖️ Step 3: Evaluating candidates..."):
             candidate_scores = await score_candidates(parsed_requirements, parsed_resumes)
             status_text.markdown("✅ **Step 3 Complete:** Candidates scored.")
             with st.expander("📊 View Candidate Scores", expanded=False):
                 st.json(candidate_scores)
 
-        #STEP 4: RANK CANDIDATES
-        with st.spinner("📊 Step 4: Ranking top candidates..."):
+        # Step 4: Rank Candidates
+        with st.spinner("🏆 Step 4: Ranking top candidates..."):
             ranked_candidates = rank_candidates(candidate_scores)
             status_text.markdown("✅ **Step 4 Complete:** Candidates ranked.")
-            with st.expander("🏆 View Ranked Candidates", expanded=False):
+            with st.expander("🏅 View Ranked Candidates", expanded=False):
                 st.json(ranked_candidates)
 
-        #STEP 5: GENERATE EMAIL TEMPLATES
-        with st.spinner("✉️ Step 5: Generating interview invitations & rejections..."):
+        # Step 5: Generate Emails
+        with st.spinner("✉️ Step 5: Generating emails for interview invites and rejections..."):
             email_templates = await generate_email_templates(ranked_candidates, parsed_requirements, num_candidates)
             status_text.markdown("✅ **Step 5 Complete:** Emails generated.")
             with st.expander("📩 View Email Templates", expanded=False):
                 st.json(email_templates)
 
-        #FINAL SUCCESS MESSAGE
-        status_text.markdown("<h3 style='text-align: center; color: #27AE60;'>🎉 AI Agent has completed processing! Your results are ready. 🚀</h3>", unsafe_allow_html=True)
-    
+        status_text.markdown(
+            "<h3 style='text-align: center; color: #27AE60;'>🎉 AI Agent has completed processing! Your results are ready. 🚀</h3>",
+            unsafe_allow_html=True,
+        )
+
     except Exception as e:
         st.error(f"❌ An error occurred: {str(e)}")
 
-
-#If User Clicks The Run Agent Button Start The Process
+# Run button
 if st.button("🚀 Run AI Screening"):
-    asyncio.run(run_agent())  # Executes the async function in Streamlit
+    asyncio.run(run_agent())
