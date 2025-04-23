@@ -9,8 +9,10 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
+# Import the Groq-based chat model from langchain-groq
 from langchain_groq import ChatGroq
 
+# Initialize ChatGroq with the GROQ API key from Streamlit secrets.
 groq_api_key = st.secrets["GROQ_API_KEY"]
 llm = ChatGroq(
     model="gemma2-9b-it", 
