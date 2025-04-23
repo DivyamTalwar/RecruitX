@@ -42,7 +42,7 @@ class Resume(BaseModel):
     summary: Optional[str] = None
     certifications: Optional[List[str]] = None
     languages: Optional[List[str]] = None
-
+    
 class JobDescription(BaseModel):
     title: str
     company: str
@@ -59,29 +59,27 @@ job_description" → Contains either : The scraped markdown text (if a URL was p
 async def ingest_inputs(job_description: str, resume_files: List[Any]) -> Dict[str, Any]:
     if job_description.startswith("http"):
         try:
-            result = app.scrape_url(job_description, params={"formats": ["markdown"]})#Return response must be in markdown fmt
+            result = app.scrape_url(job_description, params={"formats": ["markdown"]})
             if not result or "markdown" not in result:
                 raise ValueError("Scraping did not return markdown data.")
-            job_desc_text = result.get("markdown", "")#if markdown doesnt exists then job_desc_test = ""(empty string)
+            job_desc_text = result.get("markdown", "")
         except Exception as e:
-            raise Exception(f"Failed to scrape the job description URL: {e}")
+            raise ValueError(f"Failed to scrape the job description URL: {e}")
     else:
-        job_desc_text = job_description#if JD is not url a simple text
-
-    resumes = [file.name for file in resume_files]#extracts File Names for each uploaded resume
+        job_desc_text = job_description
+    resumes = [file.name for file in resume_files]
     return {"job_description": job_desc_text, "resumes": resumes}
-
 
 
 """Calls OpenAI's GPT-4o model using a provided list of chat messages.
 Returns the response text from the AI.
 response_format: Optional => This is an optional parameter that specifies the expected output format(none of Json)"""
-def call_llm(messages: list) -> str:
-    response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=messages
-    )
-    return response.choices[0].message.content
+async def call_llm(messages: List[Dict[str, str]]) -> str:
+    try:
+        response = await groq_client.chat.completions.create(messages=messages)
+        return response['choices'][0]['message']['content']
+    except Exception as e:
+        raise ValueError(f"Error calling LLM: {e}")
 
 """This function processes a raw job description (either input manually or scraped from a webpage) and extracts key details in 
 a structured format using a Large Language Model (LLM) like GPT-4.Returns a clean JSON output with important job details
@@ -89,14 +87,14 @@ data AS DEFINED IN THE JobDescription MODEL DEFINED USING PYDANTIC : dictionary 
 Here we have given a raw job description and what we did is we took the entire job description as arguement under the key
 job description and using LLM we defined it into a structed MANNER that we had defined using pydantic model"""
 async def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
-    job_text = data.get("job_description", "") #get values for key as job description is missing make it empty string
+    job_text = data.get("job_description", "")
     if not job_text:
         raise ValueError("No job description text provided.")
 
     prompt = (
         "Extract the key job information from the text below. Return only valid JSON "
         "with the following keys: title, company, location, requirements, responsibilities, benefits, experience.\n\n"
-        "Job description:\n" + job_text #provides the raw job description
+        "Job description:\n" + job_text
     )
 
     messages = [
@@ -106,13 +104,11 @@ async def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
 
     try:
         llm_output = call_llm(messages)
-        structured_jd = json.loads(llm_output) #Converts the LLM's response (a JSON-formatted string) into a Python dictionary
+        structured_jd = json.loads(llm_output)
     except Exception as e:
         raise Exception(f"Error parsing job description: {e}")
 
     return structured_jd
-
-
 
 
 """from uploaded PDF files, extracts their text, and uses an LLM (GPT-4) to extract structured candidate information like name, 
@@ -122,7 +118,7 @@ async def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
     parsed_resumes = []
 
     for resume in resume_files:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+        with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as temp_file:
             temp_file.write(resume.read())
             temp_path = temp_file.name
 
