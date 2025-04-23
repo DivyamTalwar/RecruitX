@@ -11,3 +11,5 @@ documents
 docx
 langchain
 langchain_groq
+streamlit-lottie
+streamlit-extras
