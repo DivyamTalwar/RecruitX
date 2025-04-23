@@ -15,12 +15,10 @@ st.markdown(
     "<h1 style='text-align: center; color: #4A90E2;'>🚀 AI-Powered Resume Screening</h1>",
     unsafe_allow_html=True,
 )
-
 st.markdown(
     "<h5 style='text-align: center; color: #333;'>Smartly analyze resumes & job descriptions to find the best candidates.</h5>",
     unsafe_allow_html=True,
 )
-
 st.write("---")
 
 st.subheader("📄 Job Description")
@@ -28,7 +26,9 @@ job_description = st.text_area("Paste the job description or URL", height=150)
 
 st.subheader("📂 Upload Candidate Resumes")
 resume_files = st.file_uploader(
-    "Upload resume files (PDF/Word)", type=["pdf", "docx", "doc"], accept_multiple_files=True
+    "Upload resume files (PDF/Word)",
+    type=["pdf", "docx", "doc"],
+    accept_multiple_files=True,
 )
 
 st.subheader("🎯 Candidates to Invite")
@@ -92,6 +92,5 @@ async def run_agent():
     except Exception as e:
         st.error(f"❌ An error occurred: {str(e)}")
 
-# Run button
 if st.button("🚀 Run AI Screening"):
     asyncio.run(run_agent())
