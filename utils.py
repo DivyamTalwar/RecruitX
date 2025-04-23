@@ -1,7 +1,8 @@
 import os
-from typing import List, Dict, Any, Optional
 import json
 import tempfile
+from typing import List, Dict, Any, Optional
+
 import PyPDF2
 import streamlit as st
 from dotenv import load_dotenv
@@ -12,106 +13,109 @@ load_dotenv()
 from langchain_groq import ChatGroq
 
 # Initialize ChatGroq using API key from st.secrets
-groq_api_key = st.secrets.get("GROQ_API_KEY")
+groq_api_key = st.secrets.get("GROQ_API_KEY", None)
 if not groq_api_key:
     st.error("GROQ_API_KEY not found in secrets.")
 
 llm = ChatGroq(
-    model="llama3-8b-8192",
+    model="llama-3.1-8b-instant",
     temperature=0,
     max_tokens=None,
     timeout=None,
     max_retries=2,
 )
 
+# Helper function to clean LLM output from markdown formatting.
+def clean_llm_output(text: str) -> str:
+    text = text.strip()
+    # Remove code fences if present.
+    if text.startswith("```") and text.endswith("```"):
+        text = text.strip("```").strip()
+        # Remove any language hint if present on the first line.
+        lines = text.splitlines()
+        if lines and lines[0].lower().strip().startswith("json"):
+            text = "\n".join(lines[1:]).strip()
+    return text
+
 # Define Pydantic models for structured responses
 class CandidateScore(BaseModel):
-    name: str
-    relevance: int
-    experience: int
-    skills: int
-    overall: int
-    comment: str
+    name: str = Field(..., description="Candidate's name")
+    relevance: int = Field(..., description="Resume relevance score (0-100)")
+    experience: int = Field(..., description="Candidate experience score (0-100)")
+    skills: int = Field(..., description="Candidate skills match (0-100)")
+    overall: int = Field(..., description="Overall score (0-100)")
+    comment: str = Field(..., description="Evaluation comment")
 
 class Resume(BaseModel):
-    name: str
-    work_experiences: List[str]
-    location: str
-    skills: List[str]
-    education: List[str]
-    summary: Optional[str] = None
-    certifications: Optional[List[str]] = None
-    languages: Optional[List[str]] = None
+    name: str = Field(..., description="Candidate's full name")
+    work_experiences: List[str] = Field(..., description="List of work experiences")
+    location: str = Field(..., description="Candidate's location")
+    skills: List[str] = Field(..., description="List of candidate's skills")
+    education: List[str] = Field(..., description="Educational background")
+    summary: Optional[str] = Field(None, description="Short summary or objective")
+    certifications: Optional[List[str]] = Field(None, description="List of certifications")
+    languages: Optional[List[str]] = Field(None, description="Languages spoken")
 
 class JobDescription(BaseModel):
     title: str
-    company: Optional[str] = None
-    location: Optional[str] = None
+    company: Optional[str]
+    location: Optional[str]
     requirements: List[str]
     responsibilities: List[str]
     benefits: List[str]
-    experience: Optional[str] = None
+    experience: Optional[str]
 
 def ingest_inputs(job_description: str, resume_files: List[Any]) -> Dict[str, Any]:
     if job_description.startswith("http"):
         try:
-            # Scrape the job description if URL is provided.
+            # Use GROQ to scrape the URL and return markdown data.
             result = llm.client.scrape_url(job_description, params={"formats": ["markdown"]})
             if not result or "markdown" not in result:
                 raise ValueError("Scraping did not return markdown data.")
-            job_desc_text = result["markdown"]
+            job_desc_text = result.get("markdown", "")
         except Exception as e:
             raise Exception(f"Failed to scrape the job description URL: {e}")
     else:
         job_desc_text = job_description
 
+    # Log uploaded resume file names
     resumes = [file.name for file in resume_files]
     return {"job_description": job_desc_text, "resumes": resumes}
 
 def call_llm(messages: List[Dict[str, Any]], response_format: Optional[Any] = None) -> str:
+    # Append expected JSON schema if a response format is provided.
     if response_format:
         messages[0]["content"] += f"\nReturn output in JSON matching this schema: {response_format.schema()}"
-    
     try:
         response = llm.invoke(messages)
-        raw_content = response.content
-        
-        # Remove unnecessary formatting artifacts (e.g., markdown block quotes).
-        clean_output = raw_content.strip().replace("```json", "").replace("```", "").strip()
-        
-        # Check and ensure it's valid JSON
-        if not clean_output.startswith("{"):
-            raise ValueError("Output is not recognized as valid JSON.")
-
-        return clean_output
     except Exception as e:
-        raise Exception(f"LLM invocation failed: {e}. Raw response: {raw_content}")
+        raise Exception(f"LLM invocation failed: {e}")
+    return clean_llm_output(response.content)
 
 def parse_job_description(data: Dict[str, Any]) -> Dict[str, Any]:
     job_text = data.get("job_description", "")
     if not job_text:
         raise ValueError("No job description text provided.")
-    
     prompt = (
         "Extract key job information from the text below. "
-        "Return valid JSON with these keys: title, company, location, requirements, responsibilities, benefits, experience. "
-        "If a value for a key is not available, return null instead of an empty list.\n\nJob description:\n" + job_text
+        "Return valid JSON with exactly these keys: title, company, location, requirements, responsibilities, benefits, experience. "
+        "Do not include any extra information.\n\nJob description:\n" + job_text
     )
-    
     messages = [
         {
             "role": "system",
-            "content": "You are an assistant that extracts job description details. Return only the job details in valid JSON format.",
+            "content": (
+                "You are an assistant that extracts job description details. "
+                "Return only the job details in valid JSON format."
+            ),
         },
         {"role": "user", "content": prompt},
     ]
-    
     try:
         llm_output = call_llm(messages, response_format=JobDescription)
         structured_jd = json.loads(llm_output)
     except Exception as e:
         raise Exception(f"Error parsing job description: {e}\nRaw LLM output: {llm_output}")
-    
     return structured_jd
 
 def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
@@ -119,14 +123,14 @@ def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
     for resume in resume_files:
         temp_path = None
         try:
+            # Write uploaded resume to a temporary file.
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
                 temp_file.write(resume.read())
                 temp_path = temp_file.name
-            
+            # Extract text from the PDF.
             with open(temp_path, "rb") as file:
                 pdf_reader = PyPDF2.PdfReader(file)
                 pdf_text = " ".join(page.extract_text() or "" for page in pdf_reader.pages)
-
             messages = [
                 {
                     "role": "system",
@@ -142,11 +146,11 @@ def parse_resumes(resume_files: List[Any]) -> Dict[str, Any]:
         except Exception as e:
             parsed_resume = {"error": f"Failed to parse resume: {e}"}
         finally:
+            # Ensure the temporary file is removed.
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
         parsed_resumes.append(parsed_resume)
     return {"parsed_resumes": parsed_resumes}
-
 
 def score_candidates(parsed_requirements: Dict[str, Any], parsed_resumes: Dict[str, Any]) -> List[Dict[str, Any]]:
     candidate_scores = []
@@ -212,6 +216,7 @@ def generate_email_templates(
                 )
             },
         ]
+        # For top candidates invite, others receive rejection email
         if idx < top_x:
             messages.append({
                 "role": "assistant",
