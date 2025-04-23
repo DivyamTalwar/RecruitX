@@ -8,18 +8,13 @@ from utils import (
     generate_email_templates,
 )
 
-# App Title and Description
 st.markdown(
-    "<h1 style='text-align: center; color: #4A90E2;'>🚀 AI-Powered Resume Screening</h1>",
-    unsafe_allow_html=True,
-)
+    "<h1 style='text-align: center; color: #4A90E2;'>🚀 AI-Powered Resume Screening</h1>", unsafe_allow_html=True)
 st.markdown(
     "<h5 style='text-align: center; color: #333;'>Smartly analyze resumes & job descriptions to find the best candidates.</h5>",
-    unsafe_allow_html=True,
-)
+    unsafe_allow_html=True)
 st.write("---")
 
-# Input Sections
 st.subheader("📄 Job Description")
 job_description = st.text_area("Paste the job description or URL", height=150)
 
@@ -31,10 +26,9 @@ resume_files = st.file_uploader(
 )
 
 st.subheader("🎯 Candidates to Invite")
-num_candidates = st.slider("Select the number of candidates for interviews", 1, 4, 2)
+num_candidates = st.slider("Select the number of candidates for interviews", 1, 5, 2)
 
 def run_agent():
-    # Validate user inputs before processing
     if not job_description:
         st.error("⚠️ Please provide a job description or URL.")
         return
@@ -43,8 +37,8 @@ def run_agent():
         return
 
     st.success("✅ AI Agent is processing... Stay tuned! ⏳")
-    
-    # STEP 1: Process Inputs
+
+    # Step 1: Process Inputs
     try:
         with st.spinner("🔍 Step 1: Extracting & processing inputs..."):
             raw_data = ingest_inputs(job_description, resume_files)
@@ -54,8 +48,8 @@ def run_agent():
     except Exception as e:
         st.error(f"Error in Step 1 (Ingesting Inputs): {e}")
         return
-    
-    # STEP 2: Parse Job Description & Resumes
+
+    # Step 2: Parse Job Description & Resumes
     try:
         with st.spinner("📑 Step 2: Understanding job description & resumes..."):
             parsed_requirements = parse_job_description(raw_data)
@@ -68,8 +62,13 @@ def run_agent():
     except Exception as e:
         st.error(f"Error in Step 2 (Parsing Inputs): {e}")
         return
+    # If all are errors, halt earlier!
+    all_parse_errors = all('error' in res for res in parsed_resumes["parsed_resumes"])
+    if all_parse_errors:
+        st.error("ALL resume files failed to process. Please check your uploads (PDFs must be readable text, not scanned images).")
+        return
 
-    # STEP 3: Score Candidates
+    # Step 3: Score Candidates
     try:
         with st.spinner("⚖️ Step 3: Evaluating candidates..."):
             candidate_scores = score_candidates(parsed_requirements, parsed_resumes)
@@ -80,7 +79,7 @@ def run_agent():
         st.error(f"Error in Step 3 (Scoring Candidates): {e}")
         return
 
-    # STEP 4: Rank Candidates
+    # Step 4: Rank Candidates
     try:
         with st.spinner("📊 Step 4: Ranking top candidates..."):
             ranked_candidates = rank_candidates(candidate_scores)
@@ -91,7 +90,7 @@ def run_agent():
         st.error(f"Error in Step 4 (Ranking Candidates): {e}")
         return
 
-    # STEP 5: Generate Email Templates
+    # Step 5: Generate Email Templates
     try:
         with st.spinner("✉️ Step 5: Generating email templates..."):
             email_templates = generate_email_templates(ranked_candidates, parsed_requirements, num_candidates)
