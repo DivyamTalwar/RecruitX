@@ -65,7 +65,7 @@ async def ingest_inputs(job_description: str, resume_files: List[Any]) -> Dict[s
 
 async def call_llm(messages: List[Dict[str, str]]) -> str:
     try:
-        response = await groq_client.chat.completions.create(messages=messages)
+        response = await groq_client.chat.completions.create(model="gemma2-9b-it", messages=messages)
         return response['choices'][0]['message']['content']
     except Exception as e:
         raise ValueError(f"Error calling LLM: {e}")
