@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 from utils import (
     ingest_inputs,
     parse_job_description,
@@ -9,345 +8,323 @@ from utils import (
     generate_email_templates,
 )
 
-# --- Page Configuration ---
+# --- 1. Page Configuration ---
 st.set_page_config(
-    page_title="VisionaryHire AI Screener",
-    page_icon="🔮",
+    page_title="RecruitX - AI-Powered Hiring",
+    page_icon="✨",
     layout="wide",
 )
 
-# --- Custom CSS for the "Sexy" UI ---
+# --- 2. Custom CSS for a Stunning, Professional UI ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap');
 
-    /* --- General Styling --- */
-    html, body, [class*="st-"] {
-        font-family: 'Poppins', sans-serif;
+    /* --- Universal Styles --- */
+    html, body, [class*="st-"], .st-emotion-cache-1r4qj8v {
+        font-family: 'Manrope', sans-serif;
     }
-
     .stApp {
-        background-color: #0c001f;
-        background-image: radial-gradient(circle at top right, #4a00e0, transparent 40%),
-                          radial-gradient(circle at bottom left, #8e2de2, transparent 40%);
-        background-attachment: fixed;
+        background-color: #0F172A; /* Deep Slate Blue */
+        color: #E2E8F0; /* Light Slate Gray for text */
     }
-    
+
+    /* --- Animation --- */
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(-20px); }
         to { opacity: 1; transform: translateY(0); }
     }
-
     .main-container {
-        animation: fadeIn 0.8s ease-in-out;
+        animation: fadeIn 1s ease-out;
     }
-    
-    /* --- Main Title --- */
-    .title {
+
+    /* --- Main Header --- */
+    .header-container {
         text-align: center;
         padding: 2rem 0;
     }
-    .title h1 {
+    .header-container h1 {
         font-size: 3.5rem;
-        font-weight: 700;
-        background: -webkit-linear-gradient(45deg, #8e2de2, #4a00e0, #8e2de2);
+        font-weight: 800;
+        background: -webkit-linear-gradient(45deg, #38BDF8, #007BFF);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         letter-spacing: -2px;
     }
-    .title p {
-        color: #d1c4e9;
-        font-size: 1.1rem;
-        max-width: 600px;
-        margin: 0 auto;
+    .header-container p {
+        font-size: 1.15rem;
+        color: #94A3B8; /* Medium Slate Gray */
+        max-width: 700px;
+        margin: 1rem auto 0;
     }
 
-    /* --- Glassmorphism Card Effect --- */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+    /* --- Custom Card Component --- */
+    .custom-card {
+        background-color: #1E293B; /* Darker Slate */
+        border: 1px solid #334155; /* Slate Border */
+        border-radius: 16px;
         padding: 2rem;
-        color: white;
-        transition: all 0.3s ease;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        margin-bottom: 2rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
-    .glass-card:hover {
-        background: rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px 0 rgba(74, 0, 224, 0.3);
+    .custom-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
     }
 
-    /* --- Custom Widget Styling --- */
+    /* --- Widget Styling --- */
     .stTextArea, .stFileUploader, .stSlider {
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
     .stTextArea label, .stFileUploader label, .stSlider label {
-        color: #d1c4e9 !important;
+        color: #CBD5E1 !important; /* Lighter Slate */
         font-weight: 600;
         font-size: 1.1rem;
     }
-    
-    /* Main Action Button */
+
+    /* --- Main Action Button --- */
     .stButton>button {
-        background: linear-gradient(45deg, #8e2de2, #4a00e0);
+        background: linear-gradient(90deg, #007BFF, #38BDF8);
         color: white;
-        border-radius: 12px;
+        border-radius: 10px;
         border: none;
-        padding: 15px 30px;
+        padding: 12px 28px;
         font-weight: 700;
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         width: 100%;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(142, 45, 226, 0.4);
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
     }
     .stButton>button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(142, 45, 226, 0.6);
-    }
-    
-    /* --- Results Display Styling --- */
-    .results-header {
-        text-align: center;
-        color: #f3e5f5;
-        font-size: 2.5rem;
-        font-weight: 600;
-        margin: 3rem 0 1rem 0;
-    }
-    
-    .candidate-card {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    
-    .candidate-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .candidate-name {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #e1bee7;
-    }
-    
-    .candidate-rank {
-        font-size: 1.2rem;
-        font-weight: 600;
-        color: #4a00e0;
-        background-color: #d1c4e9;
-        padding: 5px 15px;
-        border-radius: 20px;
-    }
-    
-    .score-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-        gap: 1rem;
-        text-align: center;
-    }
-    
-    .score-item {
-        background-color: rgba(0,0,0,0.2);
-        padding: 1rem;
-        border-radius: 12px;
-    }
-    
-    .score-label {
-        font-size: 0.9rem;
-        color: #d1c4e9;
-        margin-bottom: 0.5rem;
-    }
-    
-    .score-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: white;
+        transform: scale(1.03);
+        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
     }
 
-    .ai-comment {
-        font-style: italic;
-        color: #e0e0e0;
-        background-color: rgba(0,0,0,0.2);
-        padding: 1rem;
-        border-radius: 12px;
-        border-left: 3px solid #8e2de2;
+    /* --- Results Section --- */
+    .results-header {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #F8FAFC; /* Almost White */
+        text-align: center;
+        margin: 3rem 0 2rem 0;
     }
-    
-    /* Email Section */
+
+    /* --- Candidate Card Specifics --- */
+    .candidate-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+    .candidate-name {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #F1F5F9;
+    }
+    .candidate-rank {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #0F172A;
+        background-color: #38BDF8;
+        padding: 6px 14px;
+        border-radius: 20px;
+    }
+    .ai-summary {
+        font-style: italic;
+        color: #CBD5E1;
+        background-color: rgba(0,0,0,0.15);
+        padding: 1rem;
+        border-radius: 10px;
+        border-left: 4px solid #007BFF;
+        margin-top: 1rem;
+    }
+
+    /* --- Radial Progress Bar for Scores --- */
+    .progress-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: conic-gradient(#007BFF var(--progress-value), #334155 0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        margin: auto;
+    }
+    .progress-circle::before {
+        content: '';
+        position: absolute;
+        width: 80px;
+        height: 80px;
+        background: #1E293B;
+        border-radius: 50%;
+    }
+    .progress-text {
+        position: relative;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #F1F5F9;
+    }
+    .progress-label {
+        text-align: center;
+        margin-top: 0.5rem;
+        color: #94A3B8;
+        font-weight: 600;
+    }
+
+    /* --- Email Section --- */
     .email-section-header {
         font-size: 1.5rem;
-        color: #e1bee7;
+        font-weight: 600;
+        color: #E2E8F0;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #4a00e0;
+        border-bottom: 2px solid #334155;
     }
-    .email-card {
-        margin-bottom: 1.5rem;
-        padding: 1.5rem;
-    }
-    .email-card .stTextArea label {
-        color: #e1bee7 !important;
-        font-size: 1rem;
-    }
+    .email-card .stTextArea label { color: #E2E8F0 !important; }
 
 </style>
 """, unsafe_allow_html=True)
 
+# --- 3. App Layout ---
 
-# --- UI Layout ---
-
+# Use a main container for centered content and animations
 st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
 # --- Header ---
 st.markdown("""
-<div class="title">
-    <h1>🔮 VisionaryHire AI</h1>
-    <p>Unleash the power of AI to instantly screen, rank, and connect with the perfect candidates. Your intelligent hiring partner is here.</p>
+<div class="header-container">
+    <h1>RecruitX</h1>
+    <p>The future of recruitment is here. Leverage cutting-edge AI to identify, rank, and engage top-tier talent in seconds, not weeks.</p>
 </div>
 """, unsafe_allow_html=True)
 
 # --- Input Section ---
-st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-st.header("1. Configure Your Screening")
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    job_description = st.text_area(
-        "📝 Job Description", 
-        placeholder="Paste the full job description here...", 
-        height=300
-    )
-with col2:
-    resume_files = st.file_uploader(
-        "📄 Upload Resumes (PDF)",
-        type=["pdf"],
-        accept_multiple_files=True
-    )
-    num_candidates = st.slider(
-        "🎯 Number to Invite", 
-        min_value=1, 
-        max_value=10, 
-        value=3,
-        help="Select the top candidates for whom you want to generate interview invitations."
-    )
-st.markdown('</div>', unsafe_allow_html=True)
+with st.container():
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.markdown("<h3><span style='color:#94A3B8;'>Step 1:</span> Provide Your Requirements</h3>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 2])
+    with col1:
+        job_description = st.text_area(
+            "📄 **Job Description**", 
+            placeholder="Paste the entire job description here for a detailed analysis...", 
+            height=300
+        )
+    with col2:
+        resume_files = st.file_uploader(
+            "👥 **Upload Candidate Resumes**",
+            type=["pdf"],
+            accept_multiple_files=True,
+            help="Upload multiple text-based PDF resumes. Scanned images are not supported."
+        )
+        num_candidates = st.slider(
+            "🎯 **Top Candidates to Invite**", 
+            min_value=1, 
+            max_value=min(10, len(resume_files) if resume_files else 10), 
+            value=min(3, len(resume_files) if resume_files else 3),
+            help="Select how many top-ranked candidates to generate interview invitations for."
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- Agent Execution ---
-if st.button("✨ Launch AI Screening", type="primary"):
+# --- Action Button ---
+if st.button("🚀 Analyze and Rank Candidates", type="primary"):
+    # Input validation
     if not job_description.strip():
-        st.error("⚠️ The job description cannot be empty. Please paste the details.")
+        st.error("⚠️ Please provide a job description to begin the analysis.")
     elif not resume_files:
-        st.error("⚠️ No resumes uploaded. Please upload at least one PDF file.")
+        st.error("⚠️ Please upload at least one resume to screen.")
     else:
         try:
-            with st.spinner("🤖 The AI is analyzing... Please wait..."):
-                # All backend logic is encapsulated here
+            # Modern progress indicator
+            with st.status("RecruitX AI is on the job...", expanded=True) as status:
+                status.update(label="Phase 1: Ingesting and understanding your data...", state="running")
                 raw_data = ingest_inputs(job_description, resume_files)
+                
+                status.update(label="Phase 2: Parsing job description and resumes with high precision...", state="running")
                 parsed_job_desc = parse_job_description(raw_data["job_description"])
                 parsed_resumes_data = parse_resumes(raw_data["resume_files"])
                 
-                if all('error' in res for res in parsed_resumes_data["parsed_resumes"]):
-                    st.error("Fatal Error: ALL resumes failed to process. Please check your PDF files (must be text-readable, not scanned images) and try again.")
+                if all('error' in res for res in parsed_resumes_data.get("parsed_resumes", [])):
+                    status.update(label="Critical Error", state="error", expanded=True)
+                    st.error("Fatal Error: ALL resumes failed to process. Ensure they are text-readable PDFs and not scanned images.")
                     st.stop()
                 
+                status.update(label="Phase 3: Scoring each candidate against key metrics...", state="running")
                 candidate_scores = score_candidates(parsed_job_desc, parsed_resumes_data)
+                
+                status.update(label="Phase 4: Ranking candidates to find the top talent...", state="running")
                 ranked_candidates = rank_candidates(candidate_scores)
+                
+                status.update(label="Phase 5: Crafting personalized email drafts...", state="running")
                 email_templates = generate_email_templates(ranked_candidates, parsed_job_desc, num_candidates)
+                
+                status.update(label="✅ Analysis Complete!", state="complete", expanded=False)
 
             # --- Results Display ---
-            st.markdown('<h2 class="results-header">🏆 Screening Results</h2>', unsafe_allow_html=True)
+            st.markdown('<h2 class="results-header">🏆 Candidate Leaderboard</h2>', unsafe_allow_html=True)
             
-            # Display Ranked Candidates
             for i, candidate in enumerate(ranked_candidates):
                 if "Error Processing" in candidate.get("name", ""):
-                    st.error(f"Could not process file: {candidate.get('comment')}")
+                    st.warning(f"Skipped a file due to a processing error: {candidate.get('comment')}")
                     continue
                 
                 with st.container():
-                    st.markdown('<div class="glass-card candidate-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
                     
-                    # Header: Name and Rank
                     st.markdown(f"""
-                    <div class="candidate-header">
+                    <div class="candidate-card-header">
                         <div class="candidate-name">{candidate.get('name', 'N/A')}</div>
                         <div class="candidate-rank">Rank #{i+1}</div>
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # Scores
-                    col_score1, col_score2, col_score3, col_score4 = st.columns(4)
-                    with col_score1:
+                    score_col1, score_col2 = st.columns([1, 2])
+                    with score_col1:
+                        overall_score = candidate.get('overall', 0)
                         st.markdown(f"""
-                        <div class="score-item">
-                            <div class="score-label">Overall Fit</div>
-                            <div class="score-value">{candidate.get('overall', 0)}%</div>
+                        <div class="progress-circle" style="--progress-value: {overall_score}%">
+                            <div class="progress-text">{overall_score}%</div>
                         </div>
+                        <div class="progress-label">Overall Fit</div>
                         """, unsafe_allow_html=True)
-                    with col_score2:
-                        st.markdown(f"""
-                        <div class="score-item">
-                            <div class="score-label">Relevance</div>
-                            <div class="score-value">{candidate.get('relevance', 0)}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    with col_score3:
-                        st.markdown(f"""
-                        <div class="score-item">
-                            <div class="score-label">Experience</div>
-                            <div class="score-value">{candidate.get('experience', 0)}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    with col_score4:
-                        st.markdown(f"""
-                        <div class="score-item">
-                            <div class="score-label">Skills</div>
-                            <div class="score-value">{candidate.get('skills', 0)}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                    # AI Comment
-                    st.markdown(f"<div class='ai-comment'><strong>AI Summary:</strong> {candidate.get('comment', 'No comment available.')}</div>", unsafe_allow_html=True)
                     
-                    # Expander for full details
-                    with st.expander("Show Full Analysis (JSON)"):
+                    with score_col2:
+                        st.markdown(f"<div class='ai-summary'><strong>AI Assessment:</strong> {candidate.get('comment', 'No comment available.')}</div>", unsafe_allow_html=True)
+                    
+                    with st.expander("View Detailed Score Breakdown"):
                         st.json(candidate)
                     
                     st.markdown('</div>', unsafe_allow_html=True)
 
-
-            # Display Email Templates
-            st.markdown('<h2 class="results-header">✉️ Email Drafts</h2>', unsafe_allow_html=True)
-            
+            # --- Email Section ---
+            st.markdown('<h2 class="results-header">✉️ Communication Center</h2>', unsafe_allow_html=True)
             email_col1, email_col2 = st.columns(2)
             
             with email_col1:
-                st.markdown('<h3 class="email-section-header">✅ Invitations</h3>', unsafe_allow_html=True)
+                st.markdown('<div class="custom-card email-card">', unsafe_allow_html=True)
+                st.markdown('<h3 class="email-section-header">✅ Interview Invitations</h3>', unsafe_allow_html=True)
                 if email_templates["invitations"]:
                     for email in email_templates["invitations"]:
-                        st.markdown('<div class="glass-card email-card">', unsafe_allow_html=True)
-                        st.text_area(f"To: {email['name']}", value=email['email_body'], height=250, key=f"invite_{email['name']}")
-                        st.markdown('</div>', unsafe_allow_html=True)
+                        st.text_area(f"To: {email['name']}", value=email['email_body'], height=250, key=f"invite_{email['name']}", label_visibility="visible")
                 else:
-                    st.info("No candidates met the criteria for an invitation.")
+                    st.info("No candidates were selected for invitations.")
+                st.markdown('</div>', unsafe_allow_html=True)
 
             with email_col2:
-                st.markdown('<h3 class="email-section-header">❌ Rejections</h3>', unsafe_allow_html=True)
+                st.markdown('<div class="custom-card email-card">', unsafe_allow_html=True)
+                st.markdown('<h3 class="email-section-header">❌ Polite Rejections</h3>', unsafe_allow_html=True)
                 if email_templates["rejections"]:
                     for email in email_templates["rejections"]:
-                        st.markdown('<div class="glass-card email-card">', unsafe_allow_html=True)
-                        st.text_area(f"To: {email['name']}", value=email['email_body'], height=250, key=f"reject_{email['name']}")
-                        st.markdown('</div>', unsafe_allow_html=True)
+                        st.text_area(f"To: {email['name']}", value=email['email_body'], height=250, key=f"reject_{email['name']}", label_visibility="visible")
                 else:
-                    st.info("No candidates to reject based on the settings.")
+                    st.info("No candidates to send rejection emails to.")
+                st.markdown('</div>', unsafe_allow_html=True)
 
         except Exception as e:
-            st.error(f"An unexpected error occurred: {e}")
+            st.error(f"An unexpected system error occurred: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
