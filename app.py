@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from utils import (
     ingest_inputs,
     parse_job_description,
@@ -8,124 +9,176 @@ from utils import (
     generate_email_templates,
 )
 
-st.markdown(
-    "<h1 style='text-align: center; color: #4A90E2;'>🚀 AI-Powered Resume Screening</h1>", unsafe_allow_html=True)
-
-st.markdown(
-    "<h5 style='text-align: center; color: #333;'>Smartly analyze resumes & job descriptions to find the best candidates.</h5>",
-    unsafe_allow_html=True)
-
-st.write("---")
-
-st.subheader("📄 Job Description")
-
-job_description = st.text_area("Paste the job description or URL", height=150)
-
-st.subheader("📂 Upload Candidate Resumes")
-
-resume_files = st.file_uploader(
-    "Upload resume files (PDF/Word)",
-    type=["pdf", "docx", "doc"],
-    accept_multiple_files=True
+# --- Page Configuration ---
+st.set_page_config(
+    page_title="AI Resume Screener",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
-st.subheader("🎯 Candidates to Invite")
+# --- Custom CSS for Styling ---
+st.markdown("""
+<style>
+    /* Main container styling */
+    .stApp {
+        background-color: #f0f2f6;
+    }
+    /* Card-like containers */
+    .st-emotion-cache-1r4qj8v {
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 20px !important;
+        background-color: #ffffff;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    /* Button styling */
+    .stButton>button {
+        background-color: #4A90E2;
+        color: white;
+        border-radius: 8px;
+        border: none;
+        padding: 10px 20px;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background-color: #357ABD;
+        color: white;
+    }
+    /* Header styling */
+    h1, h2, h3 {
+        color: #2c3e50;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-num_candidates = st.slider("Select the number of candidates for interviews", 1, 5, 2)
+st.markdown("<h1 style='text-align: center; color: #4A90E2;'>🚀 AI-Powered Resume Screening</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #555;'>Automate your hiring workflow by intelligently analyzing resumes against job descriptions.</p>", unsafe_allow_html=True)
+st.divider()
 
-def run_agent():
-    if not job_description:
-        st.error("⚠️ Please provide a job description or URL.")
-        return
+with st.container(border=True):
+    st.header("1. Provide Job & Candidate Details")
+    col1, col2 = st.columns(2)
     
-    if not resume_files:
-        st.error("⚠️ Please upload at least one resume file.")
-        
-        return st.success("✅ AI Agent is processing... Stay tuned! ⏳")
+    with col1:
+        job_description = st.text_area(
+            "📝 **Job Description**", 
+            placeholder="Paste the full job description here...", 
+            height=250,
+            help="You can paste the text directly."
+        )
 
-    # Step 1: Process Inputs
-    try:
-        with st.spinner("🔍 Step 1: Extracting & processing inputs..."):
-            raw_data = ingest_inputs(job_description, resume_files)
-            st.success("✅ Step 1 Complete: Inputs processed.")
-            with st.expander("🔎 View Processed Inputs", expanded=False):
-                st.json(raw_data)
+    with col2:
+        resume_files = st.file_uploader(
+            "📄 **Upload Candidate Resumes**",
+            type=["pdf"],
+            accept_multiple_files=True,
+            help="Upload one or more PDF resumes. Ensure they are text-based, not scanned images."
+        )
+        num_candidates = st.slider(
+            "🎯 **Number of Candidates to Invite**", 
+            min_value=1, 
+            max_value=10, 
+            value=2,
+            help="Select how many of the top-ranked candidates you want to generate interview invitations for."
+        )
 
-    except Exception as e:
-        st.error(f"Error in Step 1 (Ingesting Inputs): {e}")
-        return
-    
-    # Step 2: Parse Job Description & Resumes
+if st.button("✨ Run AI Screening", use_container_width=True, type="primary"):
+    if not job_description.strip():
+        st.error("⚠️ Please provide a job description.")
+    elif not resume_files:
+        st.error("⚠️ Please upload at least one resume.")
+    else:
+        try:
+            with st.status("🚀 AI agent is starting the screening process...", expanded=True) as status:
 
-    try:
-        with st.spinner("📑 Step 2: Understanding job description & resumes..."):
-            parsed_requirements = parse_job_description(raw_data)
-            parsed_resumes = parse_resumes(resume_files)
-            st.success("✅ Step 2 Complete: Job description & resumes parsed.")
+                status.update(label="Step 1: Processing inputs...", state="running")
+                raw_data = ingest_inputs(job_description, resume_files)
 
-            with st.expander("📜 View Job Description", expanded=False):
-                st.json(parsed_requirements)
+                status.update(label="Step 2: Analyzing job description...", state="running")
+                parsed_job_desc = parse_job_description(raw_data["job_description"])
                 
-            with st.expander("📄 View Processed Resumes", expanded=False):
-                st.json(parsed_resumes)
+                status.update(label="Step 2: Analyzing resumes...", state="running")
+                parsed_resumes_data = parse_resumes(raw_data["resume_files"])
+                
+                if all('error' in res for res in parsed_resumes_data["parsed_resumes"]):
+                    status.update(label="Fatal Error", state="error", expanded=True)
+                    st.error("ALL resumes failed to process. Please check your PDF files (must be text-readable, not scanned images) and try again.")
+                    st.stop()
+                
+                status.update(label="Step 3: Scoring candidates against the job description...", state="running")
+                candidate_scores = score_candidates(parsed_job_desc, parsed_resumes_data)
 
-    except Exception as e:
-        st.error(f"Error in Step 2 (Parsing Inputs): {e}")
-        return
+                status.update(label="Step 4: Ranking candidates based on scores...", state="running")
+                ranked_candidates = rank_candidates(candidate_scores)
 
-    # If all are errors, halt earlier!
-    all_parse_errors = all('error' in res for res in parsed_resumes["parsed_resumes"])
-    if all_parse_errors:
-        st.error("ALL resume files failed to process. Please check your uploads (PDFs must be readable text, not scanned images).")
-        return
+                status.update(label="Step 5: Generating personalized email drafts...", state="running")
+                email_templates = generate_email_templates(ranked_candidates, parsed_job_desc, num_candidates)
+                
+                status.update(label="✅ AI Screening Complete!", state="complete", expanded=False)
 
-    # Step 3: Score Candidates
-
-    try:
-
-        with st.spinner("⚖️ Step 3: Evaluating candidates..."):
-            candidate_scores = score_candidates(parsed_requirements, parsed_resumes)
-            st.success("✅ Step 3 Complete: Candidates scored.")
-
-            with st.expander("📊 View Candidate Scores", expanded=False):
-                st.json(candidate_scores)
-
-    except Exception as e:
-        st.error(f"Error in Step 3 (Scoring Candidates): {e}")
-        return
-
-    # Step 4: Rank Candidates
-
-    try:
-        with st.spinner("📊 Step 4: Ranking top candidates..."):
-            ranked_candidates = rank_candidates(candidate_scores)
-            st.success("✅ Step 4 Complete: Candidates ranked.")
+            st.header("🏆 Screening Results")
             
-            with st.expander("🏆 View Ranked Candidates", expanded=False):
-                st.json(ranked_candidates)
+            tab1, tab2 = st.tabs(["📊 Candidate Ranking", "✉️ Email Drafts"])
 
-    except Exception as e:
-        st.error(f"Error in Step 4 (Ranking Candidates): {e}")
-        return
+            with tab1:
+                st.subheader("Top Candidates Overview")
+                
+                display_data = []
+                for candidate in ranked_candidates:
+                    display_data.append({
+                        "Name": candidate.get("name"),
+                        "Overall Score": candidate.get("overall"),
+                        "Relevance": candidate.get("relevance"),
+                        "Experience": candidate.get("experience"),
+                        "Skills": candidate.get("skills"),
+                        "AI Summary": candidate.get("comment"),
+                    })
+                
+                df = pd.DataFrame(display_data)
+                st.dataframe(
+                    df, 
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Overall Score": st.column_config.ProgressColumn(
+                            "Overall Score",
+                            format="%d/100",
+                            min_value=0,
+                            max_value=100,
+                        ),
+                    }
+                )
 
-    # Step 5: Generate Email Templates
+                st.subheader("Detailed Candidate Breakdown")
+                for candidate in ranked_candidates:
+                    with st.expander(f"**{candidate.get('name')}** - Score: {candidate.get('overall', 'N/A')}/100"):
+                        st.json(candidate, expanded=False)
 
-    try:
-        with st.spinner("✉️ Step 5: Generating email templates..."):
-            email_templates = generate_email_templates(ranked_candidates, parsed_requirements, num_candidates)
-            st.success("✅ Step 5 Complete: Emails generated.")
+            with tab2:
+                st.subheader("Generated Email Templates")
+                
+                col_invite, col_reject = st.columns(2)
+                
+                with col_invite:
+                    st.markdown("<h4>✅ Invitations</h4>", unsafe_allow_html=True)
+                    if email_templates["invitations"]:
+                        for email in email_templates["invitations"]:
+                            with st.container(border=True):
+                                st.markdown(f"**To:** {email['name']}")
+                                st.text_area("Email Body", value=email['email_body'], height=250, key=f"invite_{email['name']}")
+                    else:
+                        st.info("No candidates met the criteria for an invitation.")
 
-            with st.expander("📩 View Email Templates", expanded=False):
-                st.json(email_templates)
+                with col_reject:
+                    st.markdown("<h4>❌ Rejections</h4>", unsafe_allow_html=True)
+                    if email_templates["rejections"]:
+                        for email in email_templates["rejections"]:
+                            with st.container(border=True):
+                                st.markdown(f"**To:** {email['name']}")
+                                st.text_area("Email Body", value=email['email_body'], height=250, key=f"reject_{email['name']}")
+                    else:
+                        st.info("No candidates to reject.")
 
-    except Exception as e:
-        st.error(f"Error in Step 5 (Generating Email Templates): {e}")
-        return
-
-    st.markdown(
-        "<h3 style='text-align: center; color: #27AE60;'>🎉 AI Agent has completed processing! Your results are ready. 🚀</h3>",
-        unsafe_allow_html=True,
-    )
-
-if st.button("🚀 Run AI Screening"):
-    run_agent()
+        except Exception as e:
+            st.error(f"An unexpected error occurred during processing: {e}")
