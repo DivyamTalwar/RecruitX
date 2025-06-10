@@ -11,174 +11,343 @@ from utils import (
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="AI Resume Screener",
-    page_icon="🚀",
+    page_title="VisionaryHire AI Screener",
+    page_icon="🔮",
     layout="wide",
-    initial_sidebar_state="collapsed",
 )
 
-# --- Custom CSS for Styling ---
+# --- Custom CSS for the "Sexy" UI ---
 st.markdown("""
 <style>
-    /* Main container styling */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+    /* --- General Styling --- */
+    html, body, [class*="st-"] {
+        font-family: 'Poppins', sans-serif;
+    }
+
     .stApp {
-        background-color: #f0f2f6;
+        background-color: #0c001f;
+        background-image: radial-gradient(circle at top right, #4a00e0, transparent 40%),
+                          radial-gradient(circle at bottom left, #8e2de2, transparent 40%);
+        background-attachment: fixed;
     }
-    /* Card-like containers */
-    .st-emotion-cache-1r4qj8v {
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 20px !important;
-        background-color: #ffffff;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    /* Button styling */
-    .stButton>button {
-        background-color: #4A90E2;
+
+    .main-container {
+        animation: fadeIn 0.8s ease-in-out;
+    }
+    
+    /* --- Main Title --- */
+    .title {
+        text-align: center;
+        padding: 2rem 0;
+    }
+    .title h1 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        background: -webkit-linear-gradient(45deg, #8e2de2, #4a00e0, #8e2de2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -2px;
+    }
+    .title p {
+        color: #d1c4e9;
+        font-size: 1.1rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* --- Glassmorphism Card Effect --- */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 2rem;
         color: white;
-        border-radius: 8px;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    }
+    .glass-card:hover {
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px 0 rgba(74, 0, 224, 0.3);
+    }
+
+    /* --- Custom Widget Styling --- */
+    .stTextArea, .stFileUploader, .stSlider {
+        margin-bottom: 1.5rem;
+    }
+    .stTextArea label, .stFileUploader label, .stSlider label {
+        color: #d1c4e9 !important;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    /* Main Action Button */
+    .stButton>button {
+        background: linear-gradient(45deg, #8e2de2, #4a00e0);
+        color: white;
+        border-radius: 12px;
         border: none;
-        padding: 10px 20px;
-        font-weight: bold;
+        padding: 15px 30px;
+        font-weight: 700;
+        font-size: 1.2rem;
+        width: 100%;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(142, 45, 226, 0.4);
     }
     .stButton>button:hover {
-        background-color: #357ABD;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(142, 45, 226, 0.6);
+    }
+    
+    /* --- Results Display Styling --- */
+    .results-header {
+        text-align: center;
+        color: #f3e5f5;
+        font-size: 2.5rem;
+        font-weight: 600;
+        margin: 3rem 0 1rem 0;
+    }
+    
+    .candidate-card {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .candidate-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .candidate-name {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #e1bee7;
+    }
+    
+    .candidate-rank {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #4a00e0;
+        background-color: #d1c4e9;
+        padding: 5px 15px;
+        border-radius: 20px;
+    }
+    
+    .score-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .score-item {
+        background-color: rgba(0,0,0,0.2);
+        padding: 1rem;
+        border-radius: 12px;
+    }
+    
+    .score-label {
+        font-size: 0.9rem;
+        color: #d1c4e9;
+        margin-bottom: 0.5rem;
+    }
+    
+    .score-value {
+        font-size: 1.5rem;
+        font-weight: 700;
         color: white;
     }
-    /* Header styling */
-    h1, h2, h3 {
-        color: #2c3e50;
+
+    .ai-comment {
+        font-style: italic;
+        color: #e0e0e0;
+        background-color: rgba(0,0,0,0.2);
+        padding: 1rem;
+        border-radius: 12px;
+        border-left: 3px solid #8e2de2;
     }
+    
+    /* Email Section */
+    .email-section-header {
+        font-size: 1.5rem;
+        color: #e1bee7;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #4a00e0;
+    }
+    .email-card {
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+    }
+    .email-card .stTextArea label {
+        color: #e1bee7 !important;
+        font-size: 1rem;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center; color: #4A90E2;'>🚀 AI-Powered Resume Screening</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #555;'>Automate your hiring workflow by intelligently analyzing resumes against job descriptions.</p>", unsafe_allow_html=True)
-st.divider()
 
-with st.container(border=True):
-    st.header("1. Provide Job & Candidate Details")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        job_description = st.text_area(
-            "📝 **Job Description**", 
-            placeholder="Paste the full job description here...", 
-            height=250,
-            help="You can paste the text directly."
-        )
+# --- UI Layout ---
 
-    with col2:
-        resume_files = st.file_uploader(
-            "📄 **Upload Candidate Resumes**",
-            type=["pdf"],
-            accept_multiple_files=True,
-            help="Upload one or more PDF resumes. Ensure they are text-based, not scanned images."
-        )
-        num_candidates = st.slider(
-            "🎯 **Number of Candidates to Invite**", 
-            min_value=1, 
-            max_value=10, 
-            value=2,
-            help="Select how many of the top-ranked candidates you want to generate interview invitations for."
-        )
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-if st.button("✨ Run AI Screening", use_container_width=True, type="primary"):
+# --- Header ---
+st.markdown("""
+<div class="title">
+    <h1>🔮 VisionaryHire AI</h1>
+    <p>Unleash the power of AI to instantly screen, rank, and connect with the perfect candidates. Your intelligent hiring partner is here.</p>
+</div>
+""", unsafe_allow_html=True)
+
+# --- Input Section ---
+st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+st.header("1. Configure Your Screening")
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    job_description = st.text_area(
+        "📝 Job Description", 
+        placeholder="Paste the full job description here...", 
+        height=300
+    )
+with col2:
+    resume_files = st.file_uploader(
+        "📄 Upload Resumes (PDF)",
+        type=["pdf"],
+        accept_multiple_files=True
+    )
+    num_candidates = st.slider(
+        "🎯 Number to Invite", 
+        min_value=1, 
+        max_value=10, 
+        value=3,
+        help="Select the top candidates for whom you want to generate interview invitations."
+    )
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- Agent Execution ---
+if st.button("✨ Launch AI Screening", type="primary"):
     if not job_description.strip():
-        st.error("⚠️ Please provide a job description.")
+        st.error("⚠️ The job description cannot be empty. Please paste the details.")
     elif not resume_files:
-        st.error("⚠️ Please upload at least one resume.")
+        st.error("⚠️ No resumes uploaded. Please upload at least one PDF file.")
     else:
         try:
-            with st.status("🚀 AI agent is starting the screening process...", expanded=True) as status:
-
-                status.update(label="Step 1: Processing inputs...", state="running")
+            with st.spinner("🤖 The AI is analyzing... Please wait..."):
+                # All backend logic is encapsulated here
                 raw_data = ingest_inputs(job_description, resume_files)
-
-                status.update(label="Step 2: Analyzing job description...", state="running")
                 parsed_job_desc = parse_job_description(raw_data["job_description"])
-                
-                status.update(label="Step 2: Analyzing resumes...", state="running")
                 parsed_resumes_data = parse_resumes(raw_data["resume_files"])
                 
                 if all('error' in res for res in parsed_resumes_data["parsed_resumes"]):
-                    status.update(label="Fatal Error", state="error", expanded=True)
-                    st.error("ALL resumes failed to process. Please check your PDF files (must be text-readable, not scanned images) and try again.")
+                    st.error("Fatal Error: ALL resumes failed to process. Please check your PDF files (must be text-readable, not scanned images) and try again.")
                     st.stop()
                 
-                status.update(label="Step 3: Scoring candidates against the job description...", state="running")
                 candidate_scores = score_candidates(parsed_job_desc, parsed_resumes_data)
-
-                status.update(label="Step 4: Ranking candidates based on scores...", state="running")
                 ranked_candidates = rank_candidates(candidate_scores)
-
-                status.update(label="Step 5: Generating personalized email drafts...", state="running")
                 email_templates = generate_email_templates(ranked_candidates, parsed_job_desc, num_candidates)
-                
-                status.update(label="✅ AI Screening Complete!", state="complete", expanded=False)
 
-            st.header("🏆 Screening Results")
+            # --- Results Display ---
+            st.markdown('<h2 class="results-header">🏆 Screening Results</h2>', unsafe_allow_html=True)
             
-            tab1, tab2 = st.tabs(["📊 Candidate Ranking", "✉️ Email Drafts"])
-
-            with tab1:
-                st.subheader("Top Candidates Overview")
+            # Display Ranked Candidates
+            for i, candidate in enumerate(ranked_candidates):
+                if "Error Processing" in candidate.get("name", ""):
+                    st.error(f"Could not process file: {candidate.get('comment')}")
+                    continue
                 
-                display_data = []
-                for candidate in ranked_candidates:
-                    display_data.append({
-                        "Name": candidate.get("name"),
-                        "Overall Score": candidate.get("overall"),
-                        "Relevance": candidate.get("relevance"),
-                        "Experience": candidate.get("experience"),
-                        "Skills": candidate.get("skills"),
-                        "AI Summary": candidate.get("comment"),
-                    })
-                
-                df = pd.DataFrame(display_data)
-                st.dataframe(
-                    df, 
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Overall Score": st.column_config.ProgressColumn(
-                            "Overall Score",
-                            format="%d/100",
-                            min_value=0,
-                            max_value=100,
-                        ),
-                    }
-                )
+                with st.container():
+                    st.markdown('<div class="glass-card candidate-card">', unsafe_allow_html=True)
+                    
+                    # Header: Name and Rank
+                    st.markdown(f"""
+                    <div class="candidate-header">
+                        <div class="candidate-name">{candidate.get('name', 'N/A')}</div>
+                        <div class="candidate-rank">Rank #{i+1}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                st.subheader("Detailed Candidate Breakdown")
-                for candidate in ranked_candidates:
-                    with st.expander(f"**{candidate.get('name')}** - Score: {candidate.get('overall', 'N/A')}/100"):
-                        st.json(candidate, expanded=False)
+                    # Scores
+                    col_score1, col_score2, col_score3, col_score4 = st.columns(4)
+                    with col_score1:
+                        st.markdown(f"""
+                        <div class="score-item">
+                            <div class="score-label">Overall Fit</div>
+                            <div class="score-value">{candidate.get('overall', 0)}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col_score2:
+                        st.markdown(f"""
+                        <div class="score-item">
+                            <div class="score-label">Relevance</div>
+                            <div class="score-value">{candidate.get('relevance', 0)}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col_score3:
+                        st.markdown(f"""
+                        <div class="score-item">
+                            <div class="score-label">Experience</div>
+                            <div class="score-value">{candidate.get('experience', 0)}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col_score4:
+                        st.markdown(f"""
+                        <div class="score-item">
+                            <div class="score-label">Skills</div>
+                            <div class="score-value">{candidate.get('skills', 0)}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
-            with tab2:
-                st.subheader("Generated Email Templates")
-                
-                col_invite, col_reject = st.columns(2)
-                
-                with col_invite:
-                    st.markdown("<h4>✅ Invitations</h4>", unsafe_allow_html=True)
-                    if email_templates["invitations"]:
-                        for email in email_templates["invitations"]:
-                            with st.container(border=True):
-                                st.markdown(f"**To:** {email['name']}")
-                                st.text_area("Email Body", value=email['email_body'], height=250, key=f"invite_{email['name']}")
-                    else:
-                        st.info("No candidates met the criteria for an invitation.")
+                    # AI Comment
+                    st.markdown(f"<div class='ai-comment'><strong>AI Summary:</strong> {candidate.get('comment', 'No comment available.')}</div>", unsafe_allow_html=True)
+                    
+                    # Expander for full details
+                    with st.expander("Show Full Analysis (JSON)"):
+                        st.json(candidate)
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-                with col_reject:
-                    st.markdown("<h4>❌ Rejections</h4>", unsafe_allow_html=True)
-                    if email_templates["rejections"]:
-                        for email in email_templates["rejections"]:
-                            with st.container(border=True):
-                                st.markdown(f"**To:** {email['name']}")
-                                st.text_area("Email Body", value=email['email_body'], height=250, key=f"reject_{email['name']}")
-                    else:
-                        st.info("No candidates to reject.")
+
+            # Display Email Templates
+            st.markdown('<h2 class="results-header">✉️ Email Drafts</h2>', unsafe_allow_html=True)
+            
+            email_col1, email_col2 = st.columns(2)
+            
+            with email_col1:
+                st.markdown('<h3 class="email-section-header">✅ Invitations</h3>', unsafe_allow_html=True)
+                if email_templates["invitations"]:
+                    for email in email_templates["invitations"]:
+                        st.markdown('<div class="glass-card email-card">', unsafe_allow_html=True)
+                        st.text_area(f"To: {email['name']}", value=email['email_body'], height=250, key=f"invite_{email['name']}")
+                        st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("No candidates met the criteria for an invitation.")
+
+            with email_col2:
+                st.markdown('<h3 class="email-section-header">❌ Rejections</h3>', unsafe_allow_html=True)
+                if email_templates["rejections"]:
+                    for email in email_templates["rejections"]:
+                        st.markdown('<div class="glass-card email-card">', unsafe_allow_html=True)
+                        st.text_area(f"To: {email['name']}", value=email['email_body'], height=250, key=f"reject_{email['name']}")
+                        st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("No candidates to reject based on the settings.")
 
         except Exception as e:
-            st.error(f"An unexpected error occurred during processing: {e}")
+            st.error(f"An unexpected error occurred: {e}")
+
+st.markdown('</div>', unsafe_allow_html=True)
