@@ -13,14 +13,12 @@ from utils import (
 import time
 import json
 
-# --- 1. Page & AI Client Configuration ---
 st.set_page_config(
     page_title="RecruitX | The Future of Hiring",
     page_icon="🔮",
     layout="wide",
 )
 
-# --- 2. Initialize LLM (once per session) ---
 if 'llm' not in st.session_state:
     try:
         st.session_state.llm = ChatGroq(
@@ -32,7 +30,6 @@ if 'llm' not in st.session_state:
         st.error("🔴 GROQ_API_KEY not found. Please set it as an environment variable.")
         st.stop()
 
-# --- 3. THE ULTIMATE UI - Custom CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
@@ -131,8 +128,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
-# --- 4. App State Management ---
 if "step" not in st.session_state:
     st.session_state.step = "upload"
     st.session_state.candidates = []
@@ -144,7 +139,6 @@ if "step" not in st.session_state:
     st.session_state.saved_resume_files = []
 
 
-# --- 5. Callback & Helper Functions ---
 def proceed_to_weighting():
     """Validates inputs and calls the AI to extract requirements before proceeding."""
     if not st.session_state.saved_job_description.strip() or not st.session_state.saved_resume_files:
@@ -222,7 +216,6 @@ def trigger_analysis():
     run_final_analysis(weighted_reqs, st.session_state.saved_resume_files, st.session_state.saved_job_description)
 
 
-# --- 6. Main App UI ---
 st.markdown('<div class="main-content-wrapper fade-in">', unsafe_allow_html=True)
 st.markdown('<div class="header"><h1>RecruitX</h1><p>The future of hiring is here. Find the perfect candidate with true AI understanding.</p></div>', unsafe_allow_html=True)
 

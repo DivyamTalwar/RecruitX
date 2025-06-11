@@ -10,7 +10,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 
-# --- UTILITY FUNCTIONS ---
 def clean_llm_output(text: str) -> str:
     """Cleans the raw text output from the LLM, removing markdown fences."""
     text = text.strip()
@@ -56,7 +55,6 @@ def repair_and_parse_json(llm: BaseChatModel, broken_json_string: str) -> Option
         print(f"JSON repair failed: {e}")
         return None
 
-# --- PYDANTIC MODELS ---
 class RequirementMatch(BaseModel):
     requirement: str
     match_status: bool
@@ -75,7 +73,6 @@ class InterviewQuestions(BaseModel):
     behavioral: List[str]
     technical: List[str]
 
-# --- CORE LOGIC FUNCTIONS ---
 def extract_key_requirements(job_description: str, llm: BaseChatModel) -> List[str]:
     """Extracts the most critical requirements from a job description."""
     prompt = """
