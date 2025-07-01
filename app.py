@@ -320,39 +320,45 @@ elif st.session_state.step == "results":
         elif len(st.session_state.compare_list) > 0:
             st.info("Select at least two candidates to compare their profiles.")
 
-    with tabs[2]:
-        st.markdown("<h3 class='section-header'>✉️ Email Generation Center</h3>", unsafe_allow_html=True)
-        if st.session_state.candidates and any("Error:" not in c['name'] for c in st.session_state.candidates):
-            email_cols = st.columns(2)
-            with email_cols[0]:
-                st.markdown("<h5>Configuration</h5>", unsafe_allow_html=True)
-                max_candidates = len([c for c in st.session_state.candidates if "Error:" not in c['name']])
-                num_to_invite = st.slider("Number of top candidates to invite", 1, max_candidates, min(3, max_candidates))
-                min_score = st.slider("Minimum score to invite", 0, 100, 75)
-            with email_cols[1]:
-                st.markdown("<h5>Interview Scheduling</h5>", unsafe_allow_html=True)
-                interview_date = st.date_input("Interview Date")
-                interview_time = st.time_input("Interview Time")
-            if st.button("Generate All Emails", use_container_width=True, type="primary"):
-                with st.spinner("Crafting personalized emails..."):
-                    interview_datetime_str = f"{interview_date.strftime('%A, %B %d, %Y')} at {interview_time.strftime('%I:%M %p')}"
-                    st.session_state.generated_emails = generate_email_templates(st.session_state.candidates, {"title": st.session_state.saved_job_description}, num_to_invite, min_score, interview_datetime_str, st.session_state.llm)
-            if 'generated_emails' in st.session_state:
-                st.markdown("<hr style='border-color:var(--border-color); margin: 2rem 0;'>", unsafe_allow_html=True)
-                invite_col, reject_col = st.columns(2)
-                with invite_col:
-                    st.markdown("<h4>✅ Invitations</h4>", unsafe_allow_html=True)
-                    if st.session_state.generated_emails['invitations']:
-                        for email in st.session_state.generated_emails['invitations']:
-                            with st.expander(f"To: {email['name']}", expanded=True): st.code(email['email_body'], language=None)
-                    else: st.info("No candidates met the criteria for an invitation.")
-                with reject_col:
-                    st.markdown("<h4>❌ Rejections</h4>", unsafe_allow_html=True)
-                    if st.session_state.generated_emails['rejections']:
-                        for email in st.session_state.generated_emails['rejections']:
-                            with st.expander(f"To: {email['name']}", expanded=True): st.code(email['email_body'], language=None)
-                    else: st.info("No remaining candidates to send rejection emails to.")
-        else:
-            st.info("There are no valid candidate results to generate emails for.")
+
+with tabs[2]:
+    st.markdown("<h3 class='section-header'>✉️ Email Generation Center</h3>", unsafe_allow_html=True)
+    
+    valid_candidates = [c for c in st.session_state.candidates if "Error:" not in c['name']]
+    max_candidates = len(valid_candidates)
+
+    if max_candidates > 0:
+        email_cols = st.columns(2)
+        with email_cols[0]:
+            st.markdown("<h5>Configuration</h5>", unsafe_allow_html=True)
+            num_to_invite = st.slider("Number of top candidates to invite", 1, max_candidates, min(3, max_candidates))
+            min_score = st.slider("Minimum score to invite", 0, 100, 75)
+        with email_cols[1]:
+            st.markdown("<h5>Interview Scheduling</h5>", unsafe_allow_html=True)
+            interview_date = st.date_input("Interview Date")
+            interview_time = st.time_input("Interview Time")
+        
+        if st.button("Generate All Emails", use_container_width=True, type="primary"):
+            with st.spinner("Crafting personalized emails..."):
+                interview_datetime_str = f"{interview_date.strftime('%A, %B %d, %Y')} at {interview_time.strftime('%I:%M %p')}"
+                st.session_state.generated_emails = generate_email_templates(valid_candidates, {"title": st.session_state.saved_job_description}, num_to_invite, min_score, interview_datetime_str, st.session_state.llm)
+        
+        if 'generated_emails' in st.session_state:
+            st.markdown("<hr style='border-color:var(--border-color); margin: 2rem 0;'>", unsafe_allow_html=True)
+            invite_col, reject_col = st.columns(2)
+            with invite_col:
+                st.markdown("<h4>✅ Invitations</h4>", unsafe_allow_html=True)
+                if st.session_state.generated_emails['invitations']:
+                    for email in st.session_state.generated_emails['invitations']:
+                        with st.expander(f"To: {email['name']}", expanded=True): st.code(email['email_body'], language=None)
+                else: st.info("No candidates met the criteria for an invitation.")
+            with reject_col:
+                st.markdown("<h4>❌ Rejections</h4>", unsafe_allow_html=True)
+                if st.session_state.generated_emails['rejections']:
+                    for email in st.session_state.generated_emails['rejections']:
+                        with st.expander(f"To: {email['name']}", expanded=True): st.code(email['email_body'], language=None)
+                else: st.info("No remaining candidates to send rejection emails to.")
+    else:
+        st.warning("Analysis complete, but no valid candidate profiles were successfully generated. Cannot create emails.")
 
 st.markdown('</div>', unsafe_allow_html=True)
