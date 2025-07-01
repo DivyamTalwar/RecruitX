@@ -257,11 +257,17 @@ elif st.session_state.step == "weighting":
         st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# PASTE THIS ENTIRE BLOCK INTO YOUR app.py
+
 elif st.session_state.step == "results":
     st.success("✅ Analysis Complete! Explore your results below.")
     tabs = st.tabs(["🏆 Leaderboard", "🤝 Compare Candidates", "✉️ Email Drafts"])
     
     with tabs[0]:
+        # This part is for the Leaderboard
+        if not st.session_state.candidates:
+            st.info("No candidates were processed. Please go back and upload resumes.")
+        
         for candidate in st.session_state.candidates:
             st.markdown('<div class="input-card" style="margin-bottom: 1.5rem;">', unsafe_allow_html=True)
             candidate_name = candidate['name']
@@ -269,11 +275,13 @@ elif st.session_state.step == "results":
             with col1: st.markdown(f"<h3 class='candidate-name'>{candidate_name}</h3>", unsafe_allow_html=True)
             with col2: st.progress(candidate['overall_score'], text=f"Overall Score: {candidate['overall_score']}%")
             st.markdown(f"<p style='color: var(--subtle-text-color);'>{candidate['summary']}</p>", unsafe_allow_html=True)
+            
             if "Error:" not in candidate_name:
                 with st.expander("View Detailed Requirement Analysis (XAI)"):
                     for req in candidate['requirement_analysis']:
                         if req['match_status']: st.markdown(f"<div class='xai-item xai-met'><b>✅ Met:</b> {req['requirement']}<br><small><i><b>Evidence:</b> \"{req['evidence']}\"</i></small></div>", unsafe_allow_html=True)
                         else: st.markdown(f"<div class='xai-item xai-gap'><b>❌ Gap:</b> {req['requirement']}<br><small><i><b>Reason:</b> {req['evidence']}</i></small></div>", unsafe_allow_html=True)
+                
                 if st.button("🤖 Generate Interview Questions", key=f"gen_q_{candidate_name}"):
                     with st.spinner("Generating..."):
                         questions = generate_interview_questions(candidate['name'], candidate['summary'], st.session_state.saved_job_description, st.session_state.llm)
@@ -281,6 +289,7 @@ elif st.session_state.step == "results":
                         for q in questions.behavioral: st.markdown(f"- {q}")
                         st.markdown("<h5>Technical Questions:</h5>", unsafe_allow_html=True)
                         for q in questions.technical: st.markdown(f"- {q}")
+                
                 st.markdown("<hr style='border-color:var(--border-color); margin: 1.5rem 0;'>", unsafe_allow_html=True)
                 st.markdown("<h5>💬 Chat about this Candidate</h5>", unsafe_allow_html=True)
                 chat_container = st.container(height=200)
@@ -288,6 +297,7 @@ elif st.session_state.step == "results":
                     if candidate_name in st.session_state.chat_histories:
                         for msg in st.session_state.chat_histories[candidate_name]:
                             st.markdown(f"<div class='chat-bubble {msg['role']}'>{msg['content']}</div>", unsafe_allow_html=True)
+                
                 if prompt := st.chat_input("Ask about this candidate...", key=f"chat_{candidate_name}"):
                     st.session_state.chat_histories[candidate_name].append({"role": "user", "content": prompt})
                     retriever = st.session_state.rag_retrievers.get(candidate_name)
@@ -301,6 +311,7 @@ elif st.session_state.step == "results":
             st.markdown('</div>', unsafe_allow_html=True)
 
     with tabs[1]:
+        # This part is for Comparing Candidates
         st.multiselect("Select candidates to compare side-by-side:", [c['name'] for c in st.session_state.candidates if "Error:" not in c['name']], key="compare_list")
         if len(st.session_state.compare_list) > 1:
             compare_data = {c['name']: c for c in st.session_state.candidates if c['name'] in st.session_state.compare_list}
@@ -320,17 +331,19 @@ elif st.session_state.step == "results":
         elif len(st.session_state.compare_list) > 0:
             st.info("Select at least two candidates to compare their profiles.")
 
-
     with tabs[2]:
+        # This part is for Email Generation
         st.markdown("<h3 class='section-header'>✉️ Email Generation Center</h3>", unsafe_allow_html=True)
         
         valid_candidates = [c for c in st.session_state.candidates if "Error:" not in c['name']]
         max_candidates = len(valid_candidates)
 
+        # THE CRITICAL FIX IS HERE:
         if max_candidates > 0:
             email_cols = st.columns(2)
             with email_cols[0]:
                 st.markdown("<h5>Configuration</h5>", unsafe_allow_html=True)
+                # This slider is now protected and will only be created when max_candidates >= 1
                 num_to_invite = st.slider("Number of top candidates to invite", 1, max_candidates, min(3, max_candidates))
                 min_score = st.slider("Minimum score to invite", 0, 100, 75)
             with email_cols[1]:
@@ -359,6 +372,7 @@ elif st.session_state.step == "results":
                             with st.expander(f"To: {email['name']}", expanded=True): st.code(email['email_body'], language=None)
                     else: st.info("No remaining candidates to send rejection emails to.")
         else:
-            st.warning("Analysis complete, but no valid candidate profiles were successfully generated. Cannot create emails.")
+            # This is the fallback that shows when no valid candidates exist
+            st.warning("Analysis complete, but no valid candidate profiles were generated. Cannot create emails.")
 
 st.markdown('</div>', unsafe_allow_html=True)
