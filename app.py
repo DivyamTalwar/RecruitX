@@ -14,8 +14,8 @@ import time
 import json
 
 st.set_page_config(
-    page_title="RecruitX | The Future of Hiring",
-    page_icon="🔮",
+    page_title="RecruitX | AI-Powered Hiring",
+    page_icon="✨",
     layout="wide",
 )
 
@@ -217,7 +217,7 @@ def trigger_analysis():
 
 
 st.markdown('<div class="main-content-wrapper fade-in">', unsafe_allow_html=True)
-st.markdown('<div class="header"><h1>RecruitX</h1><p>The future of hiring is here. Find the perfect candidate with true AI understanding.</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="header"><h1>RecruitX</h1><p>AI-Powered Talent Analysis. From Resumes to Revenue in Minutes.</p></div>', unsafe_allow_html=True)
 
 if st.session_state.step == "upload":
     st.markdown('<div class="input-card">', unsafe_allow_html=True)
